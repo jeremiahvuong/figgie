@@ -19,9 +19,15 @@ class Suit(Enum):
             return "red"
         else:
             return "black"
+        
+class Player:
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.dollars = 0
+        self.inventory: Dict[Suit, int] = {suit: 0 for suit in Suit} # Initialize empty inventory
 
 class Order:
-    def __init__(self, suit: Suit, side: str, price: int, player_name: str) -> None:
+    def __init__(self, suit: Suit, side: str, price: int, player: Player) -> None:
         if side not in ["bid", "ask"]:
             raise ValueError("Side must be 'bid' or 'ask'")
 
@@ -31,20 +37,15 @@ class Order:
         self.suit = suit
         self.side = side
         self.price = price
-        self.player_name = player_name
+        self.player = player
 
 class OrderEntry(TypedDict):
     price: int
-    player: str | None
+    player: Player | None
 
 class OrderBook(TypedDict):
     bid: OrderEntry
     ask: OrderEntry
-
-class Player:
-    def __init__(self, name: str) -> None:
-        self.name = name
-        self.inventory: Dict[Suit, int] = {suit: 0 for suit in Suit} # Initialize empty inventory
 
 class GameController:
     def __init__(self, players: list[Player]) -> None:
@@ -64,6 +65,10 @@ class GameController:
 
         # Distribute cards to players
         self._distribute_cards()
+
+        # Initialize 100 dollars to each player
+        for player in self.players:
+            player.dollars = 100
 
         # Initializes orderbook
         self.orderbook: Dict[str, OrderBook] = {
@@ -114,43 +119,60 @@ class GameController:
     def add_order(self, order: Order) -> None:
         if order.side == "bid":
             if order.price <= self.orderbook[order.suit.name]["bid"]["price"]:
-                print(Fore.RED + f"[ORDER:FAILED] {order.player_name} BID {order.price} for {order.suit.name} (current bid: {self.orderbook[order.suit.name]['bid']['price']})" + Fore.RESET)
+                print(Fore.RED + f"[ORDER:FAILED] {order.player.name} BID {order.price} for {order.suit.name} (current bid: {self.orderbook[order.suit.name]['bid']['price']})" + Fore.RESET)
                 return
 
             self.orderbook[order.suit.name]["bid"] = {
                 "price": order.price,
-                "player": order.player_name,
+                "player": order.player,
             }
 
-            print(Fore.GREEN + f"[ORDER] {order.player_name} BID {order.price} for {order.suit.name}" + Fore.RESET)
+            print(Fore.YELLOW + f"[ORDER] {order.player.name} BID {order.price} for {order.suit.name}" + Fore.RESET)
             self.print_orderbook()
 
         elif order.side == "ask":
             if order.price >= self.orderbook[order.suit.name]["ask"]["price"]:
-                print(Fore.RED + f"[ORDER:FAILED] {order.player_name} ASK {order.price} for {order.suit.name} (current ask: {self.orderbook[order.suit.name]['ask']['price']})" + Fore.RESET)
+                print(Fore.RED + f"[ORDER:FAILED] {order.player.name} ASK {order.price} for {order.suit.name} (current ask: {self.orderbook[order.suit.name]['ask']['price']})" + Fore.RESET)
                 return
 
             self.orderbook[order.suit.name]["ask"] = {
                 "price": order.price,
-                "player": order.player_name,
+                "player": order.player,
             }
 
-            print(Fore.GREEN + f"[ORDER] {order.player_name} ASK {order.price} for {order.suit.name}" + Fore.RESET)
+            print(Fore.YELLOW + f"[ORDER] {order.player.name} ASK {order.price} for {order.suit.name}" + Fore.RESET)
             self.print_orderbook()
+
+    def trade(self, receiver: Player, giver: Player, suit: Suit, price: int) -> None:
+        if receiver.dollars < price:
+            print(Fore.RED + f"[TRADE:FAILED] {receiver.name} does not have enough dollars to trade" + Fore.RESET)
+            return
+        
+        if giver.inventory[suit] < 1:
+            print(Fore.RED + f"[TRADE:FAILED] {giver.name} does not have enough {suit.name} to trade" + Fore.RESET)
+            return
+
+        receiver.dollars -= price
+        receiver.inventory[suit] += 1
+
+        giver.dollars += price
+        giver.inventory[suit] -= 1
+
+        print(Fore.GREEN + f"[TRADE] {receiver.name} received {suit.name} for {price} dollars from {giver.name}" + Fore.RESET)
 
     def print_orderbook(self) -> None:
         table_data: list[dict[str, str | int]] = []
         for suit in Suit:
-            bid = self.orderbook[suit.name]['bid']
-            ask = self.orderbook[suit.name]['ask']
+            bid = self.orderbook[suit.name]["bid"]
+            ask = self.orderbook[suit.name]["ask"]
             table_data.append({
                 'Suit': suit.name.capitalize(),
                 'Bid Price': bid['price'] if bid['price'] != -999 else '-',
-                'Bidder': bid['player'] or '-',
+                'Bidder': bid['player'].name if bid['player'] else '-',
                 'Ask Price': ask['price'] if ask['price'] != 999 else '-',
-                'Asker': ask['player'] or '-'
+                'Asker': ask['player'].name if ask['player'] else '-'
             })
-        
+
         print(tabulate(table_data, headers='keys', tablefmt='grid'))
 
 def main():
@@ -162,10 +184,20 @@ def main():
 
     game = GameController([p1, p2, p3, p4, p5])
 
-    game.add_order(Order(Suit.hearts, "bid", 10, p1.name))
-    game.add_order(Order(Suit.hearts, "bid", 10, p1.name))
+    # game.add_order(Order(Suit.hearts, "bid", 10, p1))
+    # game.add_order(Order(Suit.hearts, "bid", 10, p1))
 
-    print("p1 inventory:", p1.inventory)
+    # print("p1 inventory:", p1.inventory)
+    print(f"{p1.name} dollars:", p1.dollars)
+    print(f"{p2.name} dollars:", p2.dollars)
+    print(f"{p1.name} inventory:", p1.inventory)
+    print(f"{p2.name} inventory:", p2.inventory)
+    
+    game.trade(p1, p2, Suit.hearts, 10)
+    print(f"{p1.name} dollars:", p1.dollars)
+    print(f"{p2.name} dollars:", p2.dollars)
+    print(f"{p1.name} inventory:", p1.inventory)
+    print(f"{p2.name} inventory:", p2.inventory)
 
 
 if __name__ == "__main__":
