@@ -118,9 +118,24 @@ class GameController:
 
     def add_order(self, order: Order) -> None:
         if order.side == "bid":
-            if order.price <= self.orderbook[order.suit.name]["bid"]["price"]:
+            # You can only bid if the price is lower than the current bid
+            # if you were the last bidder you can set any price (editing)
+            if order.price <= self.orderbook[order.suit.name]["bid"]["price"] and self.orderbook[order.suit.name]["bid"]["player"] is not order.player:
                 print(Fore.RED + f"[ORDER:FAILED] {order.player.name} BID {order.price} for {order.suit.name} (current bid: {self.orderbook[order.suit.name]['bid']['price']})" + Fore.RESET)
                 return
+
+            # If there exists an ask for the same suit and price, trade
+            if self.orderbook[order.suit.name]["ask"]["price"] == order.price and self.orderbook[order.suit.name]["ask"]["player"] is not order.player:
+                asker = self.orderbook[order.suit.name]["ask"]["player"]
+                if not asker:
+                    raise ValueError("Asker is None")
+                
+                self.trade(asker, order.player, order.suit, order.price)
+                
+                # Remove ask from orderbook
+                self.orderbook[order.suit.name]["ask"]["player"] = None
+                self.orderbook[order.suit.name]["ask"]["price"] = 999
+                return # Don't add bid to orderbook
 
             self.orderbook[order.suit.name]["bid"] = {
                 "price": order.price,
@@ -131,9 +146,24 @@ class GameController:
             self.print_orderbook()
 
         elif order.side == "ask":
-            if order.price >= self.orderbook[order.suit.name]["ask"]["price"]:
+            # You can only ask if the price is higher than the current ask
+            # if you were the last asker you can set any price (editing)
+            if order.price >= self.orderbook[order.suit.name]["ask"]["price"] and self.orderbook[order.suit.name]["ask"]["player"] is not order.player:
                 print(Fore.RED + f"[ORDER:FAILED] {order.player.name} ASK {order.price} for {order.suit.name} (current ask: {self.orderbook[order.suit.name]['ask']['price']})" + Fore.RESET)
                 return
+            
+            # If there exists a bid for the same suit and price, trade
+            if self.orderbook[order.suit.name]["bid"]["price"] == order.price and self.orderbook[order.suit.name]["bid"]["player"] is not order.player:
+                bidder = self.orderbook[order.suit.name]["bid"]["player"]
+                if not bidder:
+                    raise ValueError("Bidder is None")
+                
+                self.trade(bidder, order.player, order.suit, order.price)
+
+                # Remove bid from orderbook
+                self.orderbook[order.suit.name]["bid"]["player"] = None
+                self.orderbook[order.suit.name]["bid"]["price"] = -999
+                return # Don't add ask to orderbook
 
             self.orderbook[order.suit.name]["ask"] = {
                 "price": order.price,
@@ -184,20 +214,12 @@ def main():
 
     game = GameController([p1, p2, p3, p4, p5])
 
-    # game.add_order(Order(Suit.hearts, "bid", 10, p1))
-    # game.add_order(Order(Suit.hearts, "bid", 10, p1))
+    game.add_order(Order(Suit.hearts, "bid", 10, p1))
+    game.add_order(Order(Suit.hearts, "ask", 10, p2))
 
-    # print("p1 inventory:", p1.inventory)
-    print(f"{p1.name} dollars:", p1.dollars)
-    print(f"{p2.name} dollars:", p2.dollars)
-    print(f"{p1.name} inventory:", p1.inventory)
-    print(f"{p2.name} inventory:", p2.inventory)
+    game.print_orderbook()
     
-    game.trade(p1, p2, Suit.hearts, 10)
-    print(f"{p1.name} dollars:", p1.dollars)
-    print(f"{p2.name} dollars:", p2.dollars)
-    print(f"{p1.name} inventory:", p1.inventory)
-    print(f"{p2.name} inventory:", p2.inventory)
+    
 
 
 if __name__ == "__main__":
