@@ -1,0 +1,21 @@
+Figgie rules
+1. 40 cards (the suit matching each count is random each game):
+    two 10-card suits
+    one 8-card suit
+    one 12-card suit
+
+2. Goal suit
+    a goal suit can contain either 8 or 10 cards
+    the goal suit is of the same color as the 12-card suit
+
+3. Reward (arb dollars)
+    you get $10 per card in the goal suit
+    you win the rest of the pot if you have the most cards in the goal suit
+
+4. Gameplay
+    ante even shares to form $200 pot
+    40 cards randomly distributed to players (4:10, 5:8)
+    trade for 4 mins
+    only one order can be up bid/ask per card
+        ex: bid: 10 ♠ ask: 12
+        you can frontrun the bid by asking for 11, the ask for 11, you cant go for worse vals

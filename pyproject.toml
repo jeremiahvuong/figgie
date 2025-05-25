@@ -1,0 +1,10 @@
+[project]
+name = "figgie"
+version = "0.1.0"
+description = "An algorithmic sandbox for Jane Street's market making game 'Figgie'"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "colorama>=0.4.6",
+    "tabulate>=0.9.0",
+]
