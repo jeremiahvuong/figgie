@@ -199,16 +199,28 @@ class GameController:
         for suit in Suit:
             bid = self.orderbook[suit.name]["bid"]
             ask = self.orderbook[suit.name]["ask"]
+
+            bid_display = "-"
+            if bid['price'] != -999 and bid['player']:
+                bid_display = f"{Fore.GREEN}{bid['price']}{Fore.RESET} ({bid['player'].name})"
+            
+            ask_display = "-"
+            if ask['price'] != 999 and ask['player']:
+                ask_display = f"{Fore.RED}{ask['price']}{Fore.RESET} ({ask['player'].name})"
+
             table_data.append({
-                'Suit': suit.name.capitalize(),
-                'Bid Price': bid['price'] if bid['price'] != -999 else '-',
-                'Bidder': bid['player'].name if bid['player'] else '-',
-                'Ask Price': ask['price'] if ask['price'] != 999 else '-',
-                'Asker': ask['player'].name if ask['player'] else '-',
-                'Last Traded Price': self.orderbook[suit.name]["last_traded_price"] if self.orderbook[suit.name]["last_traded_price"] != 0 else '-'
+                'Suit': f"{suit.value} {suit.name.capitalize()}",
+                'Bid': bid_display,
+                'Ask': ask_display,
+                'Last Trade': f'{Fore.CYAN}{self.orderbook[suit.name]["last_traded_price"]}{Fore.RESET}' if self.orderbook[suit.name]["last_traded_price"] != 0 else '-'
             })
 
+        # Print orderbook table
+        print("\n")
         print(tabulate(table_data, headers='keys', tablefmt='grid'))
+        # Print player points
+        print(Fore.LIGHTMAGENTA_EX + tabulate([[f"{player.name}: {player.dollars}" for player in self.players]], tablefmt='grid') + Fore.RESET)
+        print("\n")
 
 def main():
     p1 = Player("John")
