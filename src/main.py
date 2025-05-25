@@ -46,6 +46,7 @@ class OrderEntry(TypedDict):
 class OrderBook(TypedDict):
     bid: OrderEntry
     ask: OrderEntry
+    last_traded_price: int
 
 class GameController:
     def __init__(self, players: list[Player]) -> None:
@@ -75,6 +76,7 @@ class GameController:
             suit.name: {
                 "bid": {"price": -999, "player": None},
                 "ask": {"price": 999, "player": None},
+                "last_traded_price": 0,
             } for suit in Suit  
         }
 
@@ -188,6 +190,8 @@ class GameController:
         giver.dollars += price
         giver.inventory[suit] -= 1
 
+        self.orderbook[suit.name]["last_traded_price"] = price
+
         print(Fore.GREEN + f"[TRADE] {receiver.name} received {suit.name} for {price} dollars from {giver.name}" + Fore.RESET)
 
     def print_orderbook(self) -> None:
@@ -200,7 +204,8 @@ class GameController:
                 'Bid Price': bid['price'] if bid['price'] != -999 else '-',
                 'Bidder': bid['player'].name if bid['player'] else '-',
                 'Ask Price': ask['price'] if ask['price'] != 999 else '-',
-                'Asker': ask['player'].name if ask['player'] else '-'
+                'Asker': ask['player'].name if ask['player'] else '-',
+                'Last Traded Price': self.orderbook[suit.name]["last_traded_price"] if self.orderbook[suit.name]["last_traded_price"] != 0 else '-'
             })
 
         print(tabulate(table_data, headers='keys', tablefmt='grid'))
