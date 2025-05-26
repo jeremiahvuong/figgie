@@ -67,10 +67,17 @@ class GameController:
         # Distribute cards to players
         self._distribute_cards()
 
-        # Initialize 100 dollars to each player
+        # Initialize 100 dollars to each player (temp)
         for player in self.players:
             player.dollars = 100
 
+        # Ante pot
+        self._pot = 0
+        ANTE = 40
+        for player in self.players:
+            player.dollars -= ANTE
+            self._pot += ANTE
+        
         # Initializes orderbook
         self.orderbook: Dict[str, OrderBook] = {
             suit.name: {
@@ -79,6 +86,19 @@ class GameController:
                 "last_traded_price": 0,
             } for suit in Suit  
         }
+
+
+        # Print Game Start
+        print("\n")
+        print(Fore.LIGHTCYAN_EX + f"Pot: {self._pot}" + Fore.RESET)
+        print(Fore.LIGHTCYAN_EX + f"Ante: {ANTE}" + Fore.RESET)
+
+        # Print players
+        print("Players:", ", ".join(self.player_names))
+        # Print card counts
+        print(tabulate([[f"{suit.value}: {self._suit_counts[suit]}" for suit in Suit]], tablefmt='grid'))
+        print("\n")
+
 
     def _init_cards(self) -> list[Suit]:
         # 1) Randomly select 12-card suit
@@ -119,6 +139,10 @@ class GameController:
                     player.inventory[self._deck.pop()] += 1
 
     def add_order(self, order: Order) -> None:
+        """
+        Adds an order to the orderbook.
+        If a bid/ask is the same, a trade is executed, as such if we want to take a bid/ask we simply need to put up a bid/ask of the same price.
+        """
         if order.side == "bid":
             # You can only bid if the price is lower than the current bid
             # if you were the last bidder you can set any price (editing)
@@ -148,6 +172,10 @@ class GameController:
             self.print_orderbook()
 
         elif order.side == "ask":
+            if order.player.inventory[order.suit] < 1:
+                print(Fore.RED + f"[ORDER:FAILED] {order.player.name} does not have {order.suit.name} to sell" + Fore.RESET)
+                return
+
             # You can only ask if the price is higher than the current ask
             # if you were the last asker you can set any price (editing)
             if order.price >= self.orderbook[order.suit.name]["ask"]["price"] and self.orderbook[order.suit.name]["ask"]["player"] is not order.player:
@@ -181,7 +209,7 @@ class GameController:
             return
         
         if giver.inventory[suit] < 1:
-            print(Fore.RED + f"[TRADE:FAILED] {giver.name} does not have enough {suit.name} to trade" + Fore.RESET)
+            print(Fore.RED + f"[TRADE:FAILED] {giver.name} does not have {suit.name} to trade" + Fore.RESET)
             return
 
         receiver.dollars -= price
@@ -193,6 +221,25 @@ class GameController:
         self.orderbook[suit.name]["last_traded_price"] = price
 
         print(Fore.GREEN + f"[TRADE] {receiver.name} received {suit.name} for {price} dollars from {giver.name}" + Fore.RESET)
+
+    def end_round(self) -> None:
+        winner: Player | None = None
+        max_cards = 0
+
+        if self._goal_suit is None:
+            raise ValueError("Goal suit is not set") # Should never happen.
+
+        for player in self.players:
+            if player.inventory[self._goal_suit] > max_cards:
+                winner = player
+                max_cards = player.inventory[self._goal_suit]
+        
+        if winner:
+            winner.dollars += self._pot
+            print(Fore.GREEN + f"\n{winner.name} wins the round with {max_cards} {self._goal_suit.name} cards! (+{self._pot} dollars)" + Fore.RESET)
+            self._pot = 0
+        else:
+            raise ValueError("No winner found") # Should never happen.
 
     def print_orderbook(self) -> None:
         table_data: list[dict[str, str | int]] = []
@@ -231,13 +278,12 @@ def main():
 
     game = GameController([p1, p2, p3, p4, p5])
 
-    game.add_order(Order(Suit.hearts, "bid", 10, p1))
-    game.add_order(Order(Suit.hearts, "ask", 10, p2))
+    game.add_order(Order(Suit.hearts, "bid", 10, p1)) # wants to buy hearts for 10 dollars
+    game.add_order(Order(Suit.hearts, "ask", 10, p2)) # wants to sell hearts for 10 dollars
+
+    game.end_round()
 
     game.print_orderbook()
-    
-    
-
 
 if __name__ == "__main__":
     main()
