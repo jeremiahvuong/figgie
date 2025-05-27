@@ -1,25 +1,12 @@
 import random
-from enum import Enum
 from typing import Dict, TypedDict
 
 from colorama import Fore
 from tabulate import tabulate
 
+from game_types import Suit
 
-class Suit(Enum):
-    hearts = "♥"
-    diamonds = "♦"
-    clubs = "♣"
-    spades = "♠"
 
-    @property
-    def color(self) -> str:
-        # Diamonds and Hearts are red, Clubs and Spades are black
-        if self in [Suit.hearts, Suit.diamonds]:
-            return "red"
-        else:
-            return "black"
-        
 class Player:
     def __init__(self, name: str) -> None:
         self.name = name
