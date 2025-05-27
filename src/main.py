@@ -1,37 +1,51 @@
 import random
-from enum import Enum
-from typing import Dict, TypedDict
+import time
+from typing import Dict, Optional, TypedDict
 
 from colorama import Fore
 from tabulate import tabulate
 
-
-class Suit(Enum):
-    hearts = "♥"
-    diamonds = "♦"
-    clubs = "♣"
-    spades = "♠"
-
-    @property
-    def color(self) -> str:
-        # Diamonds and Hearts are red, Clubs and Spades are black
-        if self in [Suit.hearts, Suit.diamonds]:
-            return "red"
-        else:
-            return "black"
+from game_types import Suit
         
+class GameState:
+    """Immutable snapshot of game state for strategy decision making"""
+    def __init__(self, orderbook: Dict[str, 'OrderBook'], player_inventory: Dict[Suit, int], 
+                 player_dollars: int, pot: int, suit_counts: Dict[Suit, int], 
+                 goal_suit: Optional[Suit] = None, suit_12: Optional[Suit] = None):
+        self.orderbook = orderbook.copy()
+        self.player_inventory = player_inventory.copy()
+        self.player_dollars = player_dollars
+        self.pot = pot
+        self.suit_counts = suit_counts.copy()
+        self.goal_suit = goal_suit
+        self.suit_12 = suit_12
+
+
+# Import base strategy class
+from base_strategy import TradingStrategy
+
+
 class Player:
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str, strategy: TradingStrategy) -> None:
         self.name = name
         self.dollars = 0
-        self.inventory: Dict[Suit, int] = {suit: 0 for suit in Suit} # Initialize empty inventory
+        self.inventory: Dict[Suit, int] = {suit: 0 for suit in Suit}
+        self.strategy = strategy
+
+    def decide_action(self, game_state: GameState) -> Optional['Order']:
+        """Use the player's strategy to decide on an action"""
+        return self.strategy.decide_action(game_state, self)
+
+    def get_strategy_name(self) -> str:
+        return self.strategy.get_strategy_name()
+
 
 class Order:
     def __init__(self, suit: Suit, side: str, price: int, player: Player) -> None:
         if side not in ["bid", "ask"]:
             raise ValueError("Side must be 'bid' or 'ask'")
 
-        if suit not in Suit:
+        if not isinstance(suit, Suit):
             raise ValueError("Invalid suit")
 
         self.suit = suit
@@ -87,14 +101,14 @@ class GameController:
             } for suit in Suit  
         }
 
-
         # Print Game Start
         print("\n")
         print(Fore.LIGHTCYAN_EX + f"Pot: {self._pot}" + Fore.RESET)
         print(Fore.LIGHTCYAN_EX + f"Ante: {ANTE}" + Fore.RESET)
 
-        # Print players
-        print("Players:", ", ".join(self.player_names))
+        # Print players and their strategies
+        player_info = [f"{player.name} ({player.get_strategy_name()})" for player in self.players]
+        print("Players:", ", ".join(player_info))
         # Print card counts
         print(tabulate([[f"{suit.value}: {self._suit_counts[suit]}" for suit in Suit]], tablefmt='grid'))
         print("\n")
@@ -269,21 +283,180 @@ class GameController:
         print(Fore.LIGHTMAGENTA_EX + tabulate([[f"{player.name}: {player.dollars}" for player in self.players]], tablefmt='grid') + Fore.RESET)
         print("\n")
 
-def main():
-    p1 = Player("John")
-    p2 = Player("Erick")
-    p3 = Player("Jane")
-    p4 = Player("Jim")
-    p5 = Player("Jill")
+    def create_game_state(self, player: Player) -> GameState:
+        """Create a GameState snapshot for a specific player"""
+        return GameState(
+            orderbook=self.orderbook,
+            player_inventory=player.inventory,
+            player_dollars=player.dollars,
+            pot=self._pot,
+            suit_counts=self._suit_counts,
+            goal_suit=self._goal_suit,
+            suit_12=self._suit_12
+        )
 
+    def run_trading_round(self, duration_minutes: float = 2.0, verbose: bool = True) -> None:
+        """Run a time-based trading round where players trade for a specified duration"""
+        start_time = time.time()
+        duration_seconds = duration_minutes * 60
+        action_count = 0
+        
+        if verbose:
+            print(Fore.LIGHTBLUE_EX + f"=== Starting {duration_minutes}-Minute Trading Round ===" + Fore.RESET)
+            print(f"Trading will end at: {time.strftime('%H:%M:%S', time.localtime(start_time + duration_seconds))}")
+        
+        while time.time() - start_time < duration_seconds:
+            # Randomly select a player to act
+            active_player = random.choice(self.players)
+            
+            # Simulate thinking time (strategy-specific delays)
+            thinking_time = active_player.strategy.get_thinking_time()
+            time.sleep(thinking_time)
+            
+            # Check if we still have time after thinking
+            if time.time() - start_time >= duration_seconds:
+                break
+            
+            # Get the game state for this player
+            game_state = self.create_game_state(active_player)
+            
+            # Let the player's strategy decide on an action
+            order = active_player.decide_action(game_state)
+            
+            if order:
+                self.add_order(order)
+                action_count += 1
+                
+                # Show time remaining periodically
+                if verbose and action_count % 5 == 0:
+                    elapsed = time.time() - start_time
+                    remaining = duration_seconds - elapsed
+                    print(f"Time remaining: {remaining:.1f}s | Actions taken: {action_count}")
+        
+        elapsed_time = time.time() - start_time
+        if verbose:
+            print(Fore.LIGHTBLUE_EX + f"=== Trading Round Complete ({elapsed_time:.1f}s, {action_count} actions) ===" + Fore.RESET)
+
+    def run_simulation(self, num_rounds: int = 1, duration_minutes: float = 2.0, verbose: bool = True) -> None:
+        """Run multiple rounds of time-based trading"""
+        for round_num in range(num_rounds):
+            if verbose:
+                print(f"\n{Fore.LIGHTCYAN_EX}=== ROUND {round_num + 1} ==={Fore.RESET}")
+            
+            # Reset for new round if not the first round
+            if round_num > 0:
+                self._reset_round()
+            
+            # Run trading
+            self.run_trading_round(duration_minutes, verbose)
+            
+            # End round and determine winner
+            self.end_round()
+            
+            if verbose:
+                self.print_final_standings()
+
+    def _reset_round(self) -> None:
+        """Reset the game state for a new round"""
+        # Reset player inventories and dollars
+        for player in self.players:
+            player.inventory = {suit: 0 for suit in Suit}
+            player.dollars = 100
+
+        # Reset game state
+        self._deck = self._init_cards()
+        self._distribute_cards()
+        
+        # Ante pot
+        self._pot = 0
+        ANTE = 40
+        for player in self.players:
+            player.dollars -= ANTE
+            self._pot += ANTE
+        
+        # Reset orderbook
+        self.orderbook = {
+            suit.name: {
+                "bid": {"price": -999, "player": None},
+                "ask": {"price": 999, "player": None},
+                "last_traded_price": 0,
+            } for suit in Suit  
+        }
+
+    def print_final_standings(self) -> None:
+        """Print final standings sorted by dollars"""
+        sorted_players = sorted(self.players, key=lambda p: p.dollars, reverse=True)
+        
+        print(f"\n{Fore.LIGHTGREEN_EX}=== FINAL STANDINGS ==={Fore.RESET}")
+        standings_data = []
+        for i, player in enumerate(sorted_players, 1):
+            goal_cards = player.inventory[self._goal_suit] if self._goal_suit else 0
+            standings_data.append([
+                f"{i}.",
+                f"{player.name} ({player.get_strategy_name()})",
+                f"${player.dollars}",
+                f"{goal_cards} {self._goal_suit.name if self._goal_suit else 'N/A'}"
+            ])
+        
+        print(tabulate(standings_data, 
+                      headers=["Rank", "Player (Strategy)", "Dollars", "Goal Cards"], 
+                      tablefmt='grid'))
+        print()
+
+def main():
+    # Import strategies
+    from strategies import RandomStrategy, ConservativeStrategy, AggressiveStrategy, ValueStrategy
+    
+    # Create players with different strategies
+    p1 = Player("Alice", RandomStrategy(action_probability=0.4))
+    p2 = Player("Bob", ConservativeStrategy())
+    p3 = Player("Charlie", AggressiveStrategy())
+    p4 = Player("Diana", ValueStrategy())
+    p5 = Player("Eve", RandomStrategy(action_probability=0.2))
+
+    # Create game controller
     game = GameController([p1, p2, p3, p4, p5])
 
-    game.add_order(Order(Suit.hearts, "bid", 10, p1)) # wants to buy hearts for 10 dollars
-    game.add_order(Order(Suit.hearts, "ask", 10, p2)) # wants to sell hearts for 10 dollars
-
-    game.end_round()
-
+    # Run automated trading simulation
+    print(f"{Fore.LIGHTMAGENTA_EX}Goal suit is: {game._goal_suit.name if game._goal_suit else 'Unknown'}{Fore.RESET}")
+    print(f"{Fore.LIGHTMAGENTA_EX}12-card suit is: {game._suit_12.name if game._suit_12 else 'Unknown'}{Fore.RESET}")
+    
+    # Run a single round of time-based trading (2 minutes)
+    game.run_trading_round(duration_minutes=2.0, verbose=True)
+    
+    # Show final orderbook
     game.print_orderbook()
+    
+    # End the round
+    game.end_round()
+    
+    # Show final standings
+    game.print_final_standings()
+
+def demo_multi_round():
+    """Demonstrate multi-round simulation"""
+    print(f"\n{Fore.LIGHTCYAN_EX}=== MULTI-ROUND SIMULATION DEMO ==={Fore.RESET}")
+    
+    # Import strategies
+    from strategies import RandomStrategy, ConservativeStrategy, AggressiveStrategy, ValueStrategy
+    
+    # Create players with different strategies
+    players = [
+        Player("RandomBot1", RandomStrategy(action_probability=0.3)),
+        Player("Conservative", ConservativeStrategy()),
+        Player("Aggressive", AggressiveStrategy()),
+        Player("ValueTrader", ValueStrategy()),
+        Player("RandomBot2", RandomStrategy(action_probability=0.4))
+    ]
+    
+    game = GameController(players)
+    
+    # Run 3 rounds of simulation (2 minutes each)
+    game.run_simulation(num_rounds=3, duration_minutes=2.0, verbose=True)
 
 if __name__ == "__main__":
-    main()
+    # Run single round demo
+    #main()
+    
+    # Uncomment to run multi-round demo
+    demo_multi_round()
