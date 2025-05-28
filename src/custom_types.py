@@ -6,6 +6,10 @@ circular import issues.
 """
 
 from enum import Enum
+from typing import TypedDict, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from player import Player
 
 
 class Suit(Enum):
@@ -21,3 +25,14 @@ class Suit(Enum):
             return "red"
         else:
             return "black"
+        
+# To be used by the orderbook
+
+class OrderEntry(TypedDict):
+    price: int
+    player: "Player | None"
+
+class OrderBook(TypedDict):
+    bid: OrderEntry
+    ask: OrderEntry
+    last_traded_price: int

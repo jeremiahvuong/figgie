@@ -1,39 +1,13 @@
 import random
-from typing import Dict, TypedDict
+from typing import Dict
 
 from colorama import Fore
 from tabulate import tabulate
 
-from game_types import Suit
+from custom_types import OrderBook, Suit
+from order import Order
+from player import Player
 
-
-class Player:
-    def __init__(self, name: str) -> None:
-        self.name = name
-        self.dollars = 0
-        self.inventory: Dict[Suit, int] = {suit: 0 for suit in Suit} # Initialize empty inventory
-
-class Order:
-    def __init__(self, suit: Suit, side: str, price: int, player: Player) -> None:
-        if side not in ["bid", "ask"]:
-            raise ValueError("Side must be 'bid' or 'ask'")
-
-        if suit not in Suit:
-            raise ValueError("Invalid suit")
-
-        self.suit = suit
-        self.side = side
-        self.price = price
-        self.player = player
-
-class OrderEntry(TypedDict):
-    price: int
-    player: Player | None
-
-class OrderBook(TypedDict):
-    bid: OrderEntry
-    ask: OrderEntry
-    last_traded_price: int
 
 class GameController:
     def __init__(self, players: list[Player]) -> None:
@@ -249,8 +223,8 @@ class GameController:
                 'Last Trade': f'{Fore.CYAN}{self.orderbook[suit.name]["last_traded_price"]}{Fore.RESET}' if self.orderbook[suit.name]["last_traded_price"] != 0 else '-'
             })
 
-        # Print orderbook table
         print("\n")
+        # Print orderbook table
         print(tabulate(table_data, headers='keys', tablefmt='grid'))
         # Print player points
         print(Fore.LIGHTMAGENTA_EX + tabulate([[f"{player.name}: {player.dollars}" for player in self.players]], tablefmt='grid') + Fore.RESET)
