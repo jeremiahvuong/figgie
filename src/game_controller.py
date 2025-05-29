@@ -4,6 +4,7 @@ from typing import Dict
 from colorama import Fore
 from tabulate import tabulate
 from custom_types import OrderBook, Suit
+from event import EventBus, TradeExecutedEvent
 from order import Order
 from player import Player
 
@@ -47,6 +48,8 @@ class GameController:
             } for suit in Suit  
         }
 
+        # Async Components
+        self.event_bus = EventBus()
 
         # Print Game Start
         print("\n")
@@ -98,7 +101,7 @@ class GameController:
                 for _ in range(8):
                     player.inventory[self._deck.pop()] += 1
 
-    def add_order(self, order: Order) -> None:
+    async def add_order(self, order: Order) -> None:
         """
         Adds an order to the orderbook.
         If a bid/ask is the same, a trade is executed, as such if we want to take a bid/ask we simply need to put up a bid/ask of the same price.
@@ -116,7 +119,7 @@ class GameController:
                 if not asker:
                     raise ValueError("Asker is None")
                 
-                self._trade(asker, order.player, order.suit, order.price)
+                await self._trade(asker, order.player, order.suit, order.price)
                 return # Don't add bid to orderbook
 
             self.orderbook[order.suit.name]["bid"] = {
@@ -144,7 +147,7 @@ class GameController:
                 if not bidder:
                     raise ValueError("Bidder is None")
 
-                self._trade(bidder, order.player, order.suit, order.price)
+                await self._trade(bidder, order.player, order.suit, order.price)
                 return # Don't add ask to orderbook
 
             self.orderbook[order.suit.name]["ask"] = {
@@ -155,7 +158,7 @@ class GameController:
             print(Fore.YELLOW + f"[ORDER] {order.player.name} ASK {order.price} for {order.suit.name}" + Fore.RESET)
             self.print_orderbook()
 
-    def _trade(self, receiver: Player, giver: Player, suit: Suit, price: int) -> None:
+    async def _trade(self, receiver: Player, giver: Player, suit: Suit, price: int) -> None:
         if receiver.dollars < price:
             print(Fore.RED + f"[TRADE:FAILED] {receiver.name} does not have enough dollars to trade" + Fore.RESET)
             return
@@ -175,6 +178,9 @@ class GameController:
 
         print(Fore.GREEN + f"[TRADE] {receiver.name} received {suit.name} for {price} dollars from {giver.name}" + Fore.RESET)
         self.print_orderbook()
+
+        # Publish trade executed event
+        await self.event_bus.publish(TradeExecutedEvent(giver=giver, receiver=receiver, suit=suit, price=price))
 
     def _reset_suit_orderbook(self, suit: Suit) -> None:
         self.orderbook[suit.name]["bid"]["player"] = None

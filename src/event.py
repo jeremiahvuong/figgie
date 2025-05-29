@@ -1,9 +1,12 @@
 import asyncio
 from typing import TYPE_CHECKING, Dict, List
 
+from custom_types import Suit
+from order import Order
+from player import Player
+
 if TYPE_CHECKING:
-    from order import Order
-    from player import Player
+    pass
 
 """
 Events to be used in the event bus
@@ -18,7 +21,7 @@ class OrderPlacedEvent(Event):
         self.order = order
 
 class TradeExecutedEvent(Event):
-    def __init__(self, receiver: str, giver: str, suit: str, price: int):
+    def __init__(self, receiver: Player, giver: Player, suit: Suit, price: int):
         self.receiver = receiver
         self.giver = giver
         self.suit = suit
@@ -41,13 +44,13 @@ class EventBus:
         """
         self._subscribers: Dict[type, List[asyncio.Queue[Event]]] = {}
 
-    async def subscribe(self, event_type: type, queue: asyncio.Queue[Event]):
+    async def subscribe(self, event_type: type, queue: asyncio.Queue[Event]) -> None:
         """Subscribe a queue to a specific event type."""
         if event_type not in self._subscribers:
             self._subscribers[event_type] = [] # make a new list if it doesn't exist
         self._subscribers[event_type].append(queue)
 
-    async def publish(self, event: Event):
+    async def publish(self, event: Event) -> None:
         """Publish an event to all subscribers of that event type."""
         event_type = type(event)
         if event_type in self._subscribers:
