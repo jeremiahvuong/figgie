@@ -3,11 +3,11 @@ from custom_types import Suit
 from game_controller import GameController
 from order import Order
 from player import Player
-from event import TradeExecutedEvent
+from event import TradeExecutedEvent, Event
 
 
 # Event handler for trade events
-async def handle_trade_event(trade_event: TradeExecutedEvent):
+async def handle_trade_event(trade_event: TradeExecutedEvent) -> None:
     print(f"🎉 TRADE EVENT DETECTED:")
     print(f"   Giver: {trade_event.giver.name} (sold {trade_event.suit.name})")
     print(f"   Receiver: {trade_event.receiver.name} (bought {trade_event.suit.name})")
@@ -16,14 +16,15 @@ async def handle_trade_event(trade_event: TradeExecutedEvent):
     print("   ---")
 
 # Subscriber queue for trade events
-trade_event_queue: asyncio.Queue[TradeExecutedEvent] = asyncio.Queue()
+trade_event_queue: asyncio.Queue[Event] = asyncio.Queue()
 
 async def event_processor():
     """Background task to process trade events"""
     while True:
         try:
-            trade_event = await trade_event_queue.get()
-            await handle_trade_event(trade_event)
+            event = await trade_event_queue.get()
+            if isinstance(event, TradeExecutedEvent):
+                await handle_trade_event(event)
         except asyncio.CancelledError:
             break
 

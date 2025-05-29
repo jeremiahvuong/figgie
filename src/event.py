@@ -1,5 +1,5 @@
 import asyncio
-from typing import TYPE_CHECKING, Dict, List
+from typing import TYPE_CHECKING, Dict, List, Type
 
 from custom_types import Suit
 from order import Order
@@ -42,9 +42,9 @@ class EventBus:
             TradeExecutedEvent: [player1_event_queue, player3_event_queue],
             ...}
         """
-        self._subscribers: Dict[type, List[asyncio.Queue[Event]]] = {}
+        self._subscribers: Dict[Type[Event], List[asyncio.Queue[Event]]] = {}
 
-    async def subscribe(self, event_type: type, queue: asyncio.Queue[Event]) -> None:
+    async def subscribe(self, event_type: Type[Event], queue: asyncio.Queue[Event]) -> None:
         """Subscribe a queue to a specific event type."""
         if event_type not in self._subscribers:
             self._subscribers[event_type] = [] # make a new list if it doesn't exist
