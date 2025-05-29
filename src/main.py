@@ -13,8 +13,13 @@ def main():
 
     game = GameController([p1, p2, p3, p4, p5])
 
-    game.add_order(Order(Suit.hearts, "bid", 10, p1)) # wants to buy hearts for 10 dollars
-    game.add_order(Order(Suit.hearts, "ask", 10, p2)) # wants to sell hearts for 10 dollars
+    game.add_order(Order(Suit.hearts, "ask", 10, p1)) # sell 10
+    game.add_order(Order(Suit.hearts, "bid", 11, p2)) # buy 11
+
+    game.add_order(Order(Suit.hearts, "bid", 10, p2)) # buy 10
+    game.add_order(Order(Suit.hearts, "ask", 9, p1)) # sell 9
+
+    game.add_order(Order(Suit.hearts, "bid", 10, p2)) # buy 10
 
     game.end_round()
 

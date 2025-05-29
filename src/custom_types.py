@@ -25,9 +25,10 @@ class Suit(Enum):
             return "red"
         else:
             return "black"
-        
-# To be used by the orderbook
 
+"""
+Types to be used by the orderbook.
+"""
 class OrderEntry(TypedDict):
     price: int
     player: "Player | None"

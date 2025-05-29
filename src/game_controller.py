@@ -110,17 +110,13 @@ class GameController:
                 print(Fore.RED + f"[ORDER:FAILED] {order.player.name} BID {order.price} for {order.suit.name} (current bid: {self.orderbook[order.suit.name]['bid']['price']})" + Fore.RESET)
                 return
 
-            # If there exists an ask for the same suit and price, trade
-            if self.orderbook[order.suit.name]["ask"]["price"] == order.price and self.orderbook[order.suit.name]["ask"]["player"] is not order.player:
+            # If there exists an ask for the same or higher price, trade
+            if self.orderbook[order.suit.name]["ask"]["price"] <= order.price and self.orderbook[order.suit.name]["ask"]["player"] is not order.player:
                 asker = self.orderbook[order.suit.name]["ask"]["player"]
                 if not asker:
                     raise ValueError("Asker is None")
                 
-                self.trade(asker, order.player, order.suit, order.price)
-                
-                # Remove ask from orderbook
-                self.orderbook[order.suit.name]["ask"]["player"] = None
-                self.orderbook[order.suit.name]["ask"]["price"] = 999
+                self._trade(asker, order.player, order.suit, order.price)
                 return # Don't add bid to orderbook
 
             self.orderbook[order.suit.name]["bid"] = {
@@ -141,18 +137,14 @@ class GameController:
             if order.price >= self.orderbook[order.suit.name]["ask"]["price"] and self.orderbook[order.suit.name]["ask"]["player"] is not order.player:
                 print(Fore.RED + f"[ORDER:FAILED] {order.player.name} ASK {order.price} for {order.suit.name} (current ask: {self.orderbook[order.suit.name]['ask']['price']})" + Fore.RESET)
                 return
-            
-            # If there exists a bid for the same suit and price, trade
-            if self.orderbook[order.suit.name]["bid"]["price"] == order.price and self.orderbook[order.suit.name]["bid"]["player"] is not order.player:
+
+            # If there exists a bid for the same or lower price, trade
+            if self.orderbook[order.suit.name]["bid"]["price"] >= order.price and self.orderbook[order.suit.name]["bid"]["player"] is not order.player:
                 bidder = self.orderbook[order.suit.name]["bid"]["player"]
                 if not bidder:
                     raise ValueError("Bidder is None")
-                
-                self.trade(bidder, order.player, order.suit, order.price)
 
-                # Remove bid from orderbook
-                self.orderbook[order.suit.name]["bid"]["player"] = None
-                self.orderbook[order.suit.name]["bid"]["price"] = -999
+                self._trade(bidder, order.player, order.suit, order.price)
                 return # Don't add ask to orderbook
 
             self.orderbook[order.suit.name]["ask"] = {
@@ -163,7 +155,7 @@ class GameController:
             print(Fore.YELLOW + f"[ORDER] {order.player.name} ASK {order.price} for {order.suit.name}" + Fore.RESET)
             self.print_orderbook()
 
-    def trade(self, receiver: Player, giver: Player, suit: Suit, price: int) -> None:
+    def _trade(self, receiver: Player, giver: Player, suit: Suit, price: int) -> None:
         if receiver.dollars < price:
             print(Fore.RED + f"[TRADE:FAILED] {receiver.name} does not have enough dollars to trade" + Fore.RESET)
             return
@@ -178,9 +170,17 @@ class GameController:
         giver.dollars += price
         giver.inventory[suit] -= 1
 
+        self._reset_suit_orderbook(suit)
         self.orderbook[suit.name]["last_traded_price"] = price
 
         print(Fore.GREEN + f"[TRADE] {receiver.name} received {suit.name} for {price} dollars from {giver.name}" + Fore.RESET)
+        self.print_orderbook()
+
+    def _reset_suit_orderbook(self, suit: Suit) -> None:
+        self.orderbook[suit.name]["bid"]["player"] = None
+        self.orderbook[suit.name]["bid"]["price"] = -999
+        self.orderbook[suit.name]["ask"]["player"] = None
+        self.orderbook[suit.name]["ask"]["price"] = 999
 
     def end_round(self) -> None:
         winner: Player | None = None
