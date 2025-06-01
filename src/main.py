@@ -93,9 +93,9 @@ async def main_game():
     p4 = Player(RandomStrategy("Jim"))
     p5 = Player(RandomStrategy("Jill"))
 
-    game = GameController([p1, p2, p3, p4, p5])
+    game = GameController(players=[p1, p2, p3, p4, p5], verbose_orderbook=False)
 
-    await game.run_game(round_duration=60)
+    await game.run_game(round_duration=20)
 
 if __name__ == "__main__":
     asyncio.run(main_game())

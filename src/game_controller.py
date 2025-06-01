@@ -12,9 +12,11 @@ from player import Player
 
 
 class GameController:
-    def __init__(self, players: list[Player]) -> None:
+    def __init__(self, players: list[Player], verbose_orderbook: bool = False) -> None:
         if len(players) < 4 or len(players) > 5:
             raise ValueError("There must be 4 or 5 players in the game")
+
+        self.verbose_orderbook = verbose_orderbook
 
         self.players = players
         self.player_names = [player.name for player in players] # indexed player names
@@ -217,7 +219,6 @@ class GameController:
         
     async def run_game(self, round_duration: float = 60.0) -> None:
         """Runs a single game round for round_duration seconds."""
-        print("Creating game round...")
         self._running = True
 
         # Run players' strategies
@@ -288,6 +289,9 @@ class GameController:
         await asyncio.gather(*forwarding_tasks, return_exceptions=True)
 
     def print_orderbook(self) -> None:
+        if not self.verbose_orderbook:
+            return
+
         table_data: list[dict[str, str | int]] = []
         for suit in Suit:
             bid = self.orderbook[suit.name]["bid"]
