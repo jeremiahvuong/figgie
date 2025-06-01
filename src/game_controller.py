@@ -1,10 +1,12 @@
+import asyncio
 import random
 from typing import Dict
 
 from colorama import Fore
 from tabulate import tabulate
+
 from custom_types import OrderBook, Suit
-from event import EventBus, TradeExecutedEvent
+from event import Event, EventBus, TradeExecutedEvent
 from order import Order
 from player import Player
 
@@ -50,6 +52,9 @@ class GameController:
 
         # Async Components
         self.event_bus = EventBus()
+        self._player_order_queues: Dict[str, asyncio.Queue[Order]] = {} # Player name : Order queue
+        self._player_tasks: Dict[str, asyncio.Task[None]] = {} # Player name : Task
+        self._running = False # Simulation running state
 
         # Print Game Start
         print("\n")
@@ -104,7 +109,7 @@ class GameController:
     async def add_order(self, order: Order) -> None:
         """
         Adds an order to the orderbook.
-        If a bid/ask is the same, a trade is executed, as such if we want to take a bid/ask we simply need to put up a bid/ask of the same price.
+        If a bid/ask is the same or of better value than the current ask/bid, a trade is executed.
         """
         if order.side == "bid":
             # You can only bid if the price is lower than the current bid
@@ -203,9 +208,84 @@ class GameController:
         if winner:
             winner.dollars += self._pot
             print(Fore.GREEN + f"\n{winner.name} wins the round with {max_cards} {self._goal_suit.name} cards! (+{self._pot} dollars)" + Fore.RESET)
+            self.print_orderbook()
+
+            # Reset pot
             self._pot = 0
         else:
             raise ValueError("No winner found") # Should never happen.
+        
+    async def run_game(self, round_duration: float = 60.0) -> None:
+        """Runs a single game round for round_duration seconds."""
+        print("Creating game round...")
+        self._running = True
+
+        # Run players' strategies
+        for player in self.players:
+            # We create queues here in the GameController as to abstract the player from the game state
+            player_event_queue: asyncio.Queue[Event] = asyncio.Queue()
+            player_order_queue: asyncio.Queue[Order] = asyncio.Queue()
+            player.event_queue = player_event_queue
+            player.order_queue = player_order_queue
+            self._player_order_queues[player.name] = player_order_queue # Store mapped {player names : order queues}
+            player_task = asyncio.create_task(player.strategy.start(player, self.event_bus, player.order_queue))
+            self._player_tasks[player.name] = player_task # Store mapped {player names : tasks}
+
+        # Process player orders
+        order_processing_task = asyncio.create_task(self._process_player_orders())
+
+        # Run game round for round_duration seconds
+        try:
+            await asyncio.sleep(round_duration)
+        except asyncio.CancelledError:
+            print("Game round cancelled")
+
+        print("Game round ending...")
+        self._running = False
+
+        # Queue cancellations of tasks
+        order_processing_task.cancel()
+        for task in self._player_tasks.values(): task.cancel()
+
+        # Wait for all tasks to complete successfully, then end round
+        await asyncio.gather(order_processing_task, *self._player_tasks.values(), return_exceptions=True)
+        self.end_round()
+
+    async def _process_player_orders(self) -> None:
+        """Asynchronous task that processes player orders upon receiving them from the event bus."""
+        merged_order_queue: asyncio.Queue[Order] = asyncio.Queue()
+
+        # Tasks to forward orders from each player's order queue to the merged order queue
+        forwarding_tasks: list[asyncio.Task[None]] = []
+
+        # Forward orders from each player's order queue to the merged order queue
+        for order_queue in self._player_order_queues.values():
+            async def forward_orders(q_from: asyncio.Queue[Order], q_to: asyncio.Queue[Order]) -> None:
+                while self._running:
+                    try:
+                        order = await q_from.get()
+                        await q_to.put(order)
+                    except asyncio.CancelledError:
+                        break
+            forwarding_tasks.append(asyncio.create_task(forward_orders(order_queue, merged_order_queue)))
+
+        while self._running:
+            try:
+                order = await asyncio.wait_for(merged_order_queue.get(), timeout=0.1)
+                if order:
+                    await self.add_order(order)
+            except asyncio.TimeoutError:
+                # No orders in the last 0.1 seconds
+                if not self._running:
+                    break
+            except asyncio.CancelledError:
+                break
+
+        for task in forwarding_tasks:
+            task.cancel()
+
+        # Wait for all forwarding tasks to complete
+        await asyncio.gather(*forwarding_tasks, return_exceptions=True)
 
     def print_orderbook(self) -> None:
         table_data: list[dict[str, str | int]] = []

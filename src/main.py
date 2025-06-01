@@ -4,6 +4,7 @@ from game_controller import GameController
 from order import Order
 from player import Player
 from event import TradeExecutedEvent, Event
+from strategy import RandomStrategy
 
 
 # Event handler for trade events
@@ -29,11 +30,11 @@ async def event_processor():
             break
 
 async def main():
-    p1 = Player("John")
-    p2 = Player("Erick")
-    p3 = Player("Jane")
-    p4 = Player("Jim")
-    p5 = Player("Jill")
+    p1 = Player(RandomStrategy("John"))
+    p2 = Player(RandomStrategy("Erick"))
+    p3 = Player(RandomStrategy("Jane"))
+    p4 = Player(RandomStrategy("Jim"))
+    p5 = Player(RandomStrategy("Jill"))
 
     game = GameController([p1, p2, p3, p4, p5])
     
@@ -76,13 +77,25 @@ async def main():
     
     # Cancel the event processor
     event_task.cancel()
+    
     try:
         await event_task
     except asyncio.CancelledError:
         pass
 
     game.end_round()
-    game.print_orderbook()
+    print("Done.")
+
+async def main_game():
+    p1 = Player(RandomStrategy("John"))
+    p2 = Player(RandomStrategy("Erick"))
+    p3 = Player(RandomStrategy("Jane"))
+    p4 = Player(RandomStrategy("Jim"))
+    p5 = Player(RandomStrategy("Jill"))
+
+    game = GameController([p1, p2, p3, p4, p5])
+
+    await game.run_game(round_duration=60)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(main_game())
