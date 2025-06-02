@@ -1,5 +1,3 @@
-## An algorithmic sandbox for Jane Street's Figgie
-
 Using the [uv](https://github.com/astral-sh/uv) package manager and pyright via pylance on vscode for type checking.
 
 Create a virtual environment:
@@ -25,3 +23,7 @@ Run the program:
 ```bash
 uv run src/main.py
 ```
+
+### Current Strategies:
+
+- `RandomStrategy`: Randomly places bids/asks +- 1-3 dollars from the current bid/ask price.
