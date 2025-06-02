@@ -1,5 +1,6 @@
 import asyncio
 import random
+import time
 from typing import Dict
 
 from colorama import Fore
@@ -57,6 +58,8 @@ class GameController:
         self._player_order_queues: Dict[str, asyncio.Queue[Order]] = {} # Player name : Order queue
         self._player_tasks: Dict[str, asyncio.Task[None]] = {} # Player name : Task
         self._running = False # Simulation running state
+
+        self._start_time = 0
 
         # Print Game Start
         print("\n")
@@ -135,7 +138,7 @@ class GameController:
                 "player": order.player,
             }
 
-            print(Fore.YELLOW + f"[ORDER] {order.player.name} BID {order.price} for {order.suit.name}" + Fore.RESET)
+            print(Fore.YELLOW + f"[ORDER] {order.player.name} BID {order.price} for {order.suit.name} @ {time.time() - self._start_time:.3f}s" + Fore.RESET)
             self.print_orderbook()
 
         elif order.side == "ask":
@@ -164,7 +167,7 @@ class GameController:
                 "player": order.player,
             }
 
-            print(Fore.YELLOW + f"[ORDER] {order.player.name} ASK {order.price} for {order.suit.name}" + Fore.RESET)
+            print(Fore.YELLOW + f"[ORDER] {order.player.name} ASK {order.price} for {order.suit.name} @ {time.time() - self._start_time:.3f}s" + Fore.RESET)
             self.print_orderbook()
 
     async def _trade(self, receiver: Player, giver: Player, suit: Suit, price: int) -> None:
@@ -185,7 +188,7 @@ class GameController:
         self._reset_suit_orderbook(suit)
         self.orderbook[suit.name]["last_traded_price"] = price
 
-        print(Fore.GREEN + f"[TRADE] {receiver.name} received {suit.name} for {price} dollars from {giver.name}" + Fore.RESET)
+        print(Fore.GREEN + f"[TRADE] {receiver.name} received {suit.name} for {price} dollars from {giver.name} @ {time.time() - self._start_time:.3f}s" + Fore.RESET)
         self.print_orderbook()
 
         # Publish trade executed event
@@ -222,6 +225,7 @@ class GameController:
     async def start_round(self, round_duration: float = 60.0) -> None:
         """Runs a single game round for round_duration seconds."""
         self._running = True
+        self._start_time = time.time()
 
         # Run players' strategies
         for player in self.players:
