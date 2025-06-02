@@ -1,34 +1,26 @@
-from typing import TYPE_CHECKING, Any, Dict, Optional
+import asyncio
+from typing import TYPE_CHECKING, Dict
+
 from custom_types import Suit
 
 if TYPE_CHECKING:
-    import asyncio
-    from event import Event
+    from event import Event, EventBus
     from order import Order
     from strategy import Strategy
 
 
 class Player:
-    def __init__(self, strategy: 'Strategy') -> None:
+    def __init__(self, strategy: 'Strategy', alias: str = "") -> None:
         self.strategy: Strategy = strategy
-        self.name = strategy.name
 
-        # Player attributes
+        self.name = f"{strategy.name} ({alias})" if alias else strategy.name
+
         self.dollars = 0
-        self.inventory: Dict[Suit, int] = {suit: 0 for suit in Suit} # Initialize empty inventory
+        self.inventory: Dict[Suit, int] = {suit: 0 for suit in Suit} # Init empty inventory
 
-        # Player queues
-        self.event_queue: Optional[asyncio.Queue[Event]] = None
-        self.order_queue: Optional[asyncio.Queue[Order]] = None
+        self.event_queue: asyncio.Queue[Event] = asyncio.Queue()
+        self.order_queue: asyncio.Queue[Order] = asyncio.Queue()
 
-    # Methods for strategy to interact with (place orders, check state)
-    # These will now interact with the async queues
-    async def decide_action(self, game_state: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        # This method will be called by the player's async task
-        # It should use self.strategy to determine the action
-        return None # temp
-    
-    # Method for the simulation to pass the game state to the player's strategy
-    def update_strategy_state(self, game_state: Dict[str, Any]) -> None:
-        if self.strategy and hasattr(self.strategy, 'update_state'):
-            self.strategy.update_state(game_state)
+    async def start_strategy(self, event_bus: "EventBus") -> None:
+        """Runs the player's strategy."""
+        await self.strategy.start(self, event_bus, self.order_queue)

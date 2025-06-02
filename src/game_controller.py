@@ -6,7 +6,7 @@ from colorama import Fore
 from tabulate import tabulate
 
 from custom_types import OrderBook, Suit
-from event import Event, EventBus, TradeExecutedEvent
+from event import EventBus, TradeExecutedEvent
 from order import Order
 from player import Player
 
@@ -42,7 +42,7 @@ class GameController:
         for player in self.players:
             player.dollars -= ANTE
             self._pot += ANTE
-        
+
         # Initializes orderbook
         self.orderbook: Dict[str, OrderBook] = {
             suit.name: {
@@ -87,16 +87,16 @@ class GameController:
                 self._goal_suit = suit
                 break
 
-        # 4) Return deck of randomized suits
+        # 4) Add cards to deck
         deck: list[Suit] = []
-
         for suit in self._suit_counts:
             for _ in range(self._suit_counts[suit]):
                 deck.append(suit)
 
+        # 5) Shuffle deck and return
         random.shuffle(deck)
         return deck
-        
+
     def _distribute_cards(self) -> None:
         # 4:10, 5:8
         if len(self.players) == 4:
@@ -223,13 +223,8 @@ class GameController:
 
         # Run players' strategies
         for player in self.players:
-            # We create queues here in the GameController as to abstract the player from the game state
-            player_event_queue: asyncio.Queue[Event] = asyncio.Queue()
-            player_order_queue: asyncio.Queue[Order] = asyncio.Queue()
-            player.event_queue = player_event_queue
-            player.order_queue = player_order_queue
-            self._player_order_queues[player.name] = player_order_queue # Store mapped {player names : order queues}
-            player_task = asyncio.create_task(player.strategy.start(player, self.event_bus, player.order_queue))
+            self._player_order_queues[player.name] = player.order_queue # Store mapped {player names : order queues}
+            player_task = asyncio.create_task(player.start_strategy(self.event_bus))
             self._player_tasks[player.name] = player_task # Store mapped {player names : tasks}
 
         # Process player orders

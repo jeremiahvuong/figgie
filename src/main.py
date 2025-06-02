@@ -6,11 +6,11 @@ from strategy import RandomStrategy
 
 
 async def main():
-    p1 = Player(RandomStrategy("John"))
-    p2 = Player(RandomStrategy("Erick"))
-    p3 = Player(RandomStrategy("Jane"))
-    p4 = Player(RandomStrategy("Jim"))
-    p5 = Player(RandomStrategy("Jill"))
+    p1 = Player(strategy=RandomStrategy(), alias="John")
+    p2 = Player(strategy=RandomStrategy(), alias="Erick")
+    p3 = Player(strategy=RandomStrategy(), alias="Jane")
+    p4 = Player(strategy=RandomStrategy(), alias="Jim")
+    p5 = Player(strategy=RandomStrategy(), alias="Jill")
 
     game = GameController(players=[p1, p2, p3, p4, p5], verbose_orderbook=False)
 
