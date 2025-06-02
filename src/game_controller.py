@@ -217,7 +217,7 @@ class GameController:
         else:
             raise ValueError("No winner found") # Should never happen.
         
-    async def run_game(self, round_duration: float = 60.0) -> None:
+    async def start_round(self, round_duration: float = 60.0) -> None:
         """Runs a single game round for round_duration seconds."""
         self._running = True
 
@@ -256,32 +256,30 @@ class GameController:
         """Asynchronous task that processes player orders upon receiving them from the event bus."""
         merged_order_queue: asyncio.Queue[Order] = asyncio.Queue()
 
-        # Tasks to forward orders from each player's order queue to the merged order queue
         forwarding_tasks: list[asyncio.Task[None]] = []
+        async def forward_orders(player_queue: asyncio.Queue[Order], merged_queue: asyncio.Queue[Order]) -> None:
+            """Forward orders from player's order queue to the merged order queue."""
+            while self._running:
+                try:
+                    order = await player_queue.get()
+                    await merged_queue.put(order)
+                except asyncio.CancelledError:
+                    break
 
-        # Forward orders from each player's order queue to the merged order queue
         for order_queue in self._player_order_queues.values():
-            async def forward_orders(q_from: asyncio.Queue[Order], q_to: asyncio.Queue[Order]) -> None:
-                while self._running:
-                    try:
-                        order = await q_from.get()
-                        await q_to.put(order)
-                    except asyncio.CancelledError:
-                        break
             forwarding_tasks.append(asyncio.create_task(forward_orders(order_queue, merged_order_queue)))
 
         while self._running:
             try:
-                order = await asyncio.wait_for(merged_order_queue.get(), timeout=0.1)
+                order = await merged_order_queue.get()
                 if order:
                     await self.add_order(order)
             except asyncio.TimeoutError:
-                # No orders in the last 0.1 seconds
-                if not self._running:
-                    break
+                break
             except asyncio.CancelledError:
                 break
-
+        
+        # Cancel all players' forwarding tasks
         for task in forwarding_tasks:
             task.cancel()
 

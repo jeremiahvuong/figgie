@@ -63,7 +63,7 @@ class RandomStrategy(Strategy):
         self._event_bus: Optional["EventBus"] = None
         self._order_queue: Optional[asyncio.Queue["Order"]] = None
 
-        self.interval = random.uniform(0.5, 1.5) # interval in seconds between deciding orders
+        self.interval = random.uniform(0.1, 0.5) # interval in seconds between deciding orders
 
     # The main trading loop
     async def start(self, player: "Player", event_bus: "EventBus", order_queue: asyncio.Queue["Order"]):
@@ -90,7 +90,6 @@ class RandomStrategy(Strategy):
                 if order:
                     await self._order_queue.put(order)
             except asyncio.CancelledError:
-                print(f"Strategy for {self._player.name} (Generic) cancelled.")
                 break
             except Exception as e:
                 print(f"Error in {self._player.name}'s Generic strategy: {e}")
