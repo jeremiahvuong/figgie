@@ -112,6 +112,7 @@ class GameController:
         """
         Adds an order to the orderbook.
         If a bid/ask is the same or of better value than the current ask/bid, a trade is executed.
+        Trades are executed at the lowest of the bid/ask price.
         """
         if order.side == "bid":
             # You can only bid if the price is lower than the current bid
@@ -123,10 +124,11 @@ class GameController:
             # If there exists an ask for the same or higher price, trade
             if self.orderbook[order.suit.name]["ask"]["price"] <= order.price and self.orderbook[order.suit.name]["ask"]["player"] is not order.player:
                 asker = self.orderbook[order.suit.name]["ask"]["player"]
-                if not asker:
-                    raise ValueError("Asker is None")
-                
-                await self._trade(asker, order.player, order.suit, order.price)
+                if not asker: raise ValueError("Asker is None") # Should never happen
+
+                trade_price = min(order.price, self.orderbook[order.suit.name]["ask"]["price"])
+
+                await self._trade(receiver=order.player, giver=asker, suit=order.suit, price=trade_price)
                 return # Don't add bid to orderbook
 
             self.orderbook[order.suit.name]["bid"] = {
@@ -142,7 +144,7 @@ class GameController:
                 print(Fore.RED + f"[ORDER:FAILED] {order.player.name} does not have {order.suit.name} to sell" + Fore.RESET)
                 return
 
-            # You can only ask if the price is higher than the current ask
+            # You can only ask if lower than the current ask
             # if you were the last asker you can set any price (editing)
             if order.price >= self.orderbook[order.suit.name]["ask"]["price"] and self.orderbook[order.suit.name]["ask"]["player"] is not order.player:
                 print(Fore.RED + f"[ORDER:FAILED] {order.player.name} ASK {order.price} for {order.suit.name} (current ask: {self.orderbook[order.suit.name]['ask']['price']})" + Fore.RESET)
@@ -151,10 +153,11 @@ class GameController:
             # If there exists a bid for the same or lower price, trade
             if self.orderbook[order.suit.name]["bid"]["price"] >= order.price and self.orderbook[order.suit.name]["bid"]["player"] is not order.player:
                 bidder = self.orderbook[order.suit.name]["bid"]["player"]
-                if not bidder:
-                    raise ValueError("Bidder is None")
+                if not bidder: raise ValueError("Bidder is None") # Should never happen
 
-                await self._trade(bidder, order.player, order.suit, order.price)
+                trade_price = min(order.price, self.orderbook[order.suit.name]["bid"]["price"])
+
+                await self._trade(receiver=bidder, giver=order.player, suit=order.suit, price=trade_price)
                 return # Don't add ask to orderbook
 
             self.orderbook[order.suit.name]["ask"] = {
@@ -224,7 +227,7 @@ class GameController:
         # Run players' strategies
         for player in self.players:
             self._player_order_queues[player.name] = player.order_queue # Store mapped {player names : order queues}
-            player_task = asyncio.create_task(player.start_strategy(self.event_bus))
+            player_task = asyncio.create_task(player.start_strategy(event_bus=self.event_bus, order_book=self.orderbook))
             self._player_tasks[player.name] = player_task # Store mapped {player names : tasks}
 
         # Process player orders

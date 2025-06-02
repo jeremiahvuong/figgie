@@ -9,6 +9,7 @@ class Order:
         # Runtime validation
         if side not in ["bid", "ask"]: raise ValueError("Side must be 'bid' or 'ask'")
         if suit not in Suit: raise ValueError("Invalid suit")
+        if price < 0: raise ValueError("Price must be positive")
 
         self.suit = suit
         self.side = side
