@@ -69,7 +69,6 @@ class GameController:
         print(tabulate([[f"{suit.value}: {self._suit_counts[suit]}" for suit in Suit]], tablefmt='grid'))
         print("\n")
 
-
     def _init_cards(self) -> list[Suit]:
         # 1) Randomly select 12-card suit
         self._suit_12 = random.choice(list(Suit))

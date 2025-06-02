@@ -1,9 +1,9 @@
 import asyncio
 import random
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Dict, Literal, Optional
 
-from custom_types import Suit
+from custom_types import OrderBook, Suit
 from event import GameStateChangedEvent
 from order import Order
 
@@ -13,12 +13,13 @@ if TYPE_CHECKING:
 
 
 class Strategy(ABC):
+    """Abstract base class for all strategies."""
     def __init__(self, name: str):
         self.name = name
         self._running = False
 
     @abstractmethod
-    async def start(self, player: "Player", event_bus: "EventBus", order_queue: asyncio.Queue["Order"]):
+    async def start(self, player: "Player", event_bus: "EventBus", order_queue: asyncio.Queue["Order"], order_book: Dict[str, OrderBook]):
         """The main asynchronous method for the strategy's logic; runs within an asyncio task."""
         pass
 
@@ -35,13 +36,14 @@ class RandomStrategy(Strategy):
 
         self.interval = random.uniform(0.1, 0.5) # interval in seconds between deciding orders
 
-    async def start(self, player: "Player", event_bus: "EventBus", order_queue: asyncio.Queue["Order"]):
+    async def start(self, player: "Player", event_bus: "EventBus", order_queue: asyncio.Queue["Order"], order_book: Dict[str, OrderBook]):
         """
         Randomly places bid/ask orders depending on the player's inventory and spread.
         """
         self._player = player
         self._event_bus = event_bus
         self._order_queue = order_queue
+        self._order_book = order_book
 
         self._running = True
 
@@ -62,8 +64,26 @@ class RandomStrategy(Strategy):
     async def _get_random_order(self) -> Optional["Order"]:
         assert self._player is not None # internal function, strategy should be associated with a player
         random_suit = random.choice(list(Suit))
-        random_price = int(random.uniform(1, 20))
-        random_side = random.choice(["bid", "ask"])
+        random_side: Literal["bid", "ask"] = random.choice(["bid", "ask"])
 
-        random_order = Order(suit=random_suit, side=random_side, price=random_price, player=self._player)
+        # If the player has no inventory of the suit, don't place an order
+        if random_side == "ask" and self._player.inventory[random_suit] < 1:
+            return None
+
+        curr_price = self._order_book[random_suit.name][random_side]['price']
+
+        if curr_price == -999 or curr_price == 999:
+            curr_price = 0
+
+        if random_side == "bid":
+            random_price = curr_price + random.uniform(1, 3)
+        elif random_side == "ask" and curr_price == 0:
+            random_price = 1
+        else:
+            random_price = curr_price - random.uniform(1, 3)
+
+        if random_price < 1:
+            return None
+
+        random_order = Order(suit=random_suit, side=random_side, price=int(random_price), player=self._player)
         return random_order
