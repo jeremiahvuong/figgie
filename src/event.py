@@ -1,5 +1,5 @@
 import asyncio
-from typing import TYPE_CHECKING, Any, Dict, Set, Type
+from typing import TYPE_CHECKING, Dict, Set, Type
 
 from custom_types import Suit
 
@@ -27,11 +27,6 @@ class TradeExecutedEvent(Event):
         self.giver = giver
         self.suit = suit
         self.price = price
-
-class GameStateChangedEvent(Event):
-    """Event for when the game state changes."""
-    def __init__(self, game_state_snapshot: Dict[str, Any]):
-        self.game_state_snapshot = game_state_snapshot
 
 
 class EventBus:
