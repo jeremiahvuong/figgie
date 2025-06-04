@@ -184,7 +184,6 @@ class GameController:
 
         receiver.dollars -= price
         receiver.inventory[suit] += 1
-
         giver.dollars += price
         giver.inventory[suit] -= 1
 
@@ -193,6 +192,18 @@ class GameController:
 
         print(Fore.GREEN + f"[TRADE] {receiver.name} received {suit.name} for {price} dollars from {giver.name} @ {time.time() - self._start_time:.3f}s" + Fore.RESET)
         await self.event_bus.publish(TradeExecutedEvent(giver=giver, receiver=receiver, suit=suit, price=price))
+
+        # Since the reciever loses money, if they have active bids that are greater 
+        # than their amount of dollars after the trade, cancel those orders.
+        for s in Suit:
+            if s == suit: continue # already reset, skip the suit we're trading
+            if self.orderbook[s.name]["bid"]["player"] == receiver:
+                trade_price = self.orderbook[s.name]["bid"]["price"]
+                if receiver.dollars < trade_price:
+                    self.orderbook[s.name]["bid"]["player"] = None
+                    self.orderbook[s.name]["bid"]["price"] = -999
+                    print(Fore.MAGENTA + f"[TRADE:CANCELLED] {receiver.name} bid of {trade_price} for {s.name} cancelled because they don't have enough dollars to trade @ {time.time() - self._start_time:.3f}s" + Fore.RESET)
+
         self.print_orderbook()
 
     def _reset_suit_orderbook(self, suit: Suit) -> None:
