@@ -7,7 +7,7 @@ from colorama import Fore
 from tabulate import tabulate
 
 from custom_types import OrderBook, Suit
-from event import EventBus, TradeExecutedEvent
+from event import EventBus, OrderPlacedEvent, TradeExecutedEvent
 from order import Order
 from player import Player
 
@@ -139,6 +139,7 @@ class GameController:
             }
 
             print(Fore.YELLOW + f"[ORDER] {order.player.name} BID {order.price} for {order.suit.name} @ {time.time() - self._start_time:.3f}s" + Fore.RESET)
+            await self.event_bus.publish(OrderPlacedEvent(player=order.player, order=order))
             self.print_orderbook()
 
         elif order.side == "ask":
@@ -168,7 +169,9 @@ class GameController:
             }
 
             print(Fore.YELLOW + f"[ORDER] {order.player.name} ASK {order.price} for {order.suit.name} @ {time.time() - self._start_time:.3f}s" + Fore.RESET)
+            await self.event_bus.publish(OrderPlacedEvent(player=order.player, order=order))
             self.print_orderbook()
+            
 
     async def _trade(self, receiver: Player, giver: Player, suit: Suit, price: int) -> None:
         if receiver.dollars < price:
@@ -189,10 +192,8 @@ class GameController:
         self.orderbook[suit.name]["last_traded_price"] = price
 
         print(Fore.GREEN + f"[TRADE] {receiver.name} received {suit.name} for {price} dollars from {giver.name} @ {time.time() - self._start_time:.3f}s" + Fore.RESET)
-        self.print_orderbook()
-
-        # Publish trade executed event
         await self.event_bus.publish(TradeExecutedEvent(giver=giver, receiver=receiver, suit=suit, price=price))
+        self.print_orderbook()
 
     def _reset_suit_orderbook(self, suit: Suit) -> None:
         self.orderbook[suit.name]["bid"]["player"] = None
@@ -215,7 +216,7 @@ class GameController:
         if winner:
             winner.dollars += self._pot
             print(Fore.GREEN + f"\n{winner.name} wins the round with {max_cards} {self._goal_suit.name} cards! (+{self._pot} dollars)" + Fore.RESET)
-            self.print_orderbook()
+            self.print_orderbook(always_print=True)
 
             # Reset pot
             self._pot = 0
@@ -287,8 +288,8 @@ class GameController:
         # Wait for all forwarding tasks to complete
         await asyncio.gather(*forwarding_tasks, return_exceptions=True)
 
-    def print_orderbook(self) -> None:
-        if not self.verbose_orderbook:
+    def print_orderbook(self, always_print: bool = False) -> None:
+        if not self.verbose_orderbook and not always_print:
             return
 
         table_data: list[dict[str, str | int]] = []
