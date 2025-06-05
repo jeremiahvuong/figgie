@@ -26,4 +26,4 @@ uv run src/main.py
 
 ### Current Strategies:
 
-- "Noisy": Randomly places bids/asks to simulate retail/noisy behavior.
+- `Noisy`: Randomly places bids/asks to simulate retail/noisy behavior.
