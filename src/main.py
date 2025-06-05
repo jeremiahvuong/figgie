@@ -2,19 +2,19 @@ import asyncio
 
 from game_controller import GameController
 from player import Player
-from strategy import RandomStrategy
+from strategy import Noisy
 
 
 async def main():
-    p1 = Player(strategy=RandomStrategy(), alias="John")
-    p2 = Player(strategy=RandomStrategy(), alias="Erick")
-    p3 = Player(strategy=RandomStrategy(), alias="Jane")
-    p4 = Player(strategy=RandomStrategy(), alias="Jim")
-    p5 = Player(strategy=RandomStrategy(), alias="Jill")
+    p1 = Player(strategy=Noisy(lower_interval=0.5, upper_interval=3), alias="Alex")
+    p2 = Player(strategy=Noisy(lower_interval=0.5, upper_interval=3), alias="Erick")
+    p3 = Player(strategy=Noisy(lower_interval=0.5, upper_interval=3), alias="Zoe")
+    p4 = Player(strategy=Noisy(lower_interval=0.5, upper_interval=3), alias="Kevin")
+    p5 = Player(strategy=Noisy(lower_interval=0.5, upper_interval=3), alias="Jill")
 
     game = GameController(players=[p1, p2, p3, p4, p5], verbose_orderbook=False)
 
-    await game.start_round(round_duration=10)
+    await game.start_round(round_duration=20)
 
 if __name__ == "__main__":
     asyncio.run(main())

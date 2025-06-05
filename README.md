@@ -26,4 +26,4 @@ uv run src/main.py
 
 ### Current Strategies:
 
-- `RandomStrategy`: Randomly places bids/asks +- 1-3 dollars from the current bid/ask price.
+- "Noisy": Randomly places bids/asks to simulate retail/noisy behavior.
