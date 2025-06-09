@@ -21,5 +21,9 @@ class Player:
         self.order_queue: asyncio.Queue[Order] = asyncio.Queue()
 
     async def start_strategy(self, event_bus: "EventBus", order_book: Dict[str, OrderBook]) -> None:
-        """Runs the player's strategy."""
-        await self.strategy.start(player=self, event_bus=event_bus, order_queue=self.order_queue, order_book=order_book)
+        """Runs the player's associated strategy."""
+        await self.strategy.start(
+            player=self,
+            event_bus=event_bus, 
+            order_book=order_book,
+        )

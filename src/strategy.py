@@ -18,7 +18,7 @@ class Strategy(ABC):
         self._running = False
 
     @abstractmethod
-    async def start(self, player: "Player", event_bus: "EventBus", order_queue: asyncio.Queue["Order"], order_book: Dict[str, OrderBook]):
+    async def start(self, player: "Player", event_bus: "EventBus", order_book: Dict[str, OrderBook]) -> None:
         """The main asynchronous method for the strategy's logic; runs within an asyncio task, invoked by player.start()"""
         pass
 
@@ -29,19 +29,13 @@ class Noisy(Strategy):
     """Randomly places bid/ask orders between $1-15 inclusive."""
     def __init__(self, lower_interval: float = 1, upper_interval: float = 5):
         super().__init__(name="Noisy")
-
-        self._player: Optional["Player"] = None
-        self._event_bus: Optional["EventBus"] = None
-        self._order_queue: Optional[asyncio.Queue["Order"]] = None
-
         self.interval = random.uniform(lower_interval, upper_interval) # interval in seconds between deciding orders
 
-    async def start(self, player: "Player", event_bus: "EventBus", order_queue: asyncio.Queue["Order"], order_book: Dict[str, OrderBook]):
+    async def start(self, player: "Player", event_bus: "EventBus", order_book: Dict[str, OrderBook]):
         self._player = player
+        self._order_queue = player.order_queue
         self._event_bus = event_bus
-        self._order_queue = order_queue
         self._order_book = order_book
-
         self._running = True
 
         while self._running:
