@@ -65,6 +65,7 @@ class GameController:
         print("\n")
         print(Fore.LIGHTCYAN_EX + f"Pot: {self._pot}" + Fore.RESET)
         print(Fore.LIGHTCYAN_EX + f"Ante: {ANTE}" + Fore.RESET)
+        print(Fore.LIGHTCYAN_EX + f"Goal Suit: {self._goal_suit.name.capitalize() if self._goal_suit else 'Goal Suit Not Set!'}" + Fore.RESET)
 
         # Print players
         print("Players:", ", ".join(self.player_names))
