@@ -26,6 +26,15 @@ class Suit(Enum):
         else:
             return "black"
 
+    def get_same_color_suit(self, suit: "Suit") -> "Suit":
+        color_map = {
+            Suit.hearts: Suit.diamonds,
+            Suit.diamonds: Suit.hearts,
+            Suit.clubs: Suit.spades,
+            Suit.spades: Suit.clubs,
+        }
+        return color_map[suit]
+
 """
 Types to be used by the orderbook.
 """
