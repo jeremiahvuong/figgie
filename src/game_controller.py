@@ -229,6 +229,9 @@ class GameController:
             winner.dollars += self._pot
             print(Fore.GREEN + f"\n{winner.name} wins the round with {max_cards} {self._goal_suit.name} cards! (+{self._pot} dollars)" + Fore.RESET)
             self.print_orderbook(always_print=True)
+            # Print player inventory
+            for player in self.players:
+                print(Fore.LIGHTMAGENTA_EX + f"{player.name}: {player.inventory}" + Fore.RESET)
 
             # Reset pot
             self._pot = 0
